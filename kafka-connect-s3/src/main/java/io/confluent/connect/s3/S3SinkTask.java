@@ -48,9 +48,14 @@ import io.confluent.connect.s3.format.RecordViews.KeyRecordView;
 import io.confluent.connect.s3.storage.S3Storage;
 import io.confluent.connect.s3.util.Version;
 import io.confluent.connect.storage.StorageFactory;
+import io.confluent.connect.s3.backup.S3StorageWriter;
+import io.confluent.connect.storage.backup.ConverterTypeDetector;
+import io.confluent.connect.storage.backup.ObjectStoreSchemaBackupStore;
+import io.confluent.connect.storage.backup.SchemaBackupStore;
 import io.confluent.connect.storage.common.StorageCommonConfig;
 import io.confluent.connect.storage.format.Format;
 import io.confluent.connect.storage.format.RecordWriterProvider;
+import io.confluent.connect.storage.format.backup.EnvelopeRecordWriterProvider;
 import io.confluent.connect.storage.partitioner.Partitioner;
 import io.confluent.connect.storage.partitioner.PartitionerConfig;
 
@@ -175,6 +180,10 @@ public class S3SinkTask extends SinkTask {
       throws ClassNotFoundException, InvocationTargetException, InstantiationException,
       NoSuchMethodException, IllegalAccessException {
 
+    if (config.isEnvelopeMode()) {
+      return newEnvelopeWriterProvider(config);
+    }
+
     RecordWriterProvider<S3SinkConnectorConfig> valueWriterProvider =
         newFormat(S3SinkConnectorConfig.FORMAT_CLASS_CONFIG).getRecordWriterProvider();
 
@@ -193,6 +202,27 @@ public class S3SinkTask extends SinkTask {
 
     return new KeyValueHeaderRecordWriterProvider(
         valueWriterProvider, keyWriterProvider, headerWriterProvider);
+  }
+
+  private RecordWriterProvider<S3SinkConnectorConfig> newEnvelopeWriterProvider(
+      S3SinkConnectorConfig config)
+      throws ClassNotFoundException, InvocationTargetException, InstantiationException,
+      NoSuchMethodException, IllegalAccessException {
+    RecordWriterProvider<S3SinkConnectorConfig> formatWriter =
+        newFormat(S3SinkConnectorConfig.FORMAT_CLASS_CONFIG).getRecordWriterProvider();
+    String topicsDir = config.getString(StorageCommonConfig.TOPICS_DIR_CONFIG);
+    String dirDelim = config.getString(StorageCommonConfig.DIRECTORY_DELIM_CONFIG);
+    SchemaBackupStore backupStore =
+        new ObjectStoreSchemaBackupStore(
+            new S3StorageWriter(storage), topicsDir, dirDelim);
+    Map<String, String> originals = config.originalsStrings();
+    String keyType = ConverterTypeDetector.detectSchemaType(
+        originals.get("key.converter"), originals, "key.converter.");
+    String valueType = ConverterTypeDetector.detectSchemaType(
+        originals.get("value.converter"), originals, "value.converter.");
+    log.info("Envelope mode: keyType={}, valueType={}", keyType, valueType);
+    return new EnvelopeRecordWriterProvider<>(
+        formatWriter, backupStore, keyType, valueType);
   }
 
   private Partitioner<?> newPartitioner(S3SinkConnectorConfig config)

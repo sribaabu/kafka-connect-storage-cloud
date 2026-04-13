@@ -21,7 +21,7 @@
     <parent>
         <groupId>io.confluent</groupId>
         <artifactId>kafka-connect-storage-common-parent</artifactId>
-        <version>12.0.9</version>
+        <version>12.0.10-SNAPSHOT</version>
     </parent>
 
     <groupId>io.confluent</groupId>
@@ -58,6 +58,7 @@
     </modules>
 
     <properties>
+        <backup.schema.registry.version>7.7.8-0</backup.schema.registry.version>
         <snappy.java>1.1.10.4</snappy.java>
         <checkstyle.suppressions.location>checkstyle/suppressions.xml</checkstyle.suppressions.location>
         <maven.release.plugin.version>2.5.3</maven.release.plugin.version>
@@ -440,8 +441,7 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>kafka-connect-avro-converter</artifactId>
-            <version>${confluent.version.range}</version>
-            <scope>test</scope>
+            <version>${backup.schema.registry.version}</version>
         </dependency>
         <dependency>
             <groupId>io.confluent</groupId>

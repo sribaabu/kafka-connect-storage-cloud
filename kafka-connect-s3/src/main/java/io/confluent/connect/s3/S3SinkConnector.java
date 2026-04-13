@@ -70,6 +70,11 @@ public class S3SinkConnector extends SinkConnector {
   @Override
   public List<Map<String, String>> taskConfigs(int maxTasks) {
     Map<String, String> taskProps = new HashMap<>(configProps);
+    if (config.isEnvelopeMode()) {
+      taskProps.put("key.converter.backup.mode", "envelope");
+      taskProps.put("value.converter.backup.mode", "envelope");
+      log.info("Envelope mode: propagated backup.mode to converters");
+    }
     List<Map<String, String>> taskConfigs = new ArrayList<>(maxTasks);
     for (int i = 0; i < maxTasks; ++i) {
       taskConfigs.add(taskProps);
